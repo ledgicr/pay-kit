@@ -9,13 +9,18 @@ license = "MIT"
 default = ["server", "client"]
 server = ["dep:tokio"]
 client = ["dep:reqwest"]
+# Ledger hardware-wallet signing (USB-HID), passed through to the keychain backend.
+ledger = ["solana-keychain/ledger"]
 
 [dependencies]
 # Shared channel primitives (PDA/voucher/instruction builders for the upto scheme)
 solana-pay-core = { path = "../core" }
 
-# Signing — solana-keychain with sdk-v3
-solana-keychain = { git = "https://github.com/solana-foundation/solana-keychain", rev = "d788028edbe02a94ef5eee7585d0230ad771296e", default-features = false, features = ["memory", "sdk-v3"] }
+# Signing — solana-keychain with sdk-v3.
+# DEV WIRING: pointed at the ledgicr fork's `ledger-signing` branch so the
+# `ledger` passthrough feature resolves. Restore the solana-foundation source +
+# merge-commit rev before upstreaming.
+solana-keychain = { git = "https://github.com/ledgicr/solana-keychain", branch = "ledger-signing", default-features = false, features = ["memory", "sdk-v3"] }
 
 # Solana — atomic crates only
 solana-hash = { version = "3.1", default-features = false }

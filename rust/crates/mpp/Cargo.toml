@@ -18,6 +18,9 @@ testkit = ["settlement", "solana-pay-core/testkit"]
 otel = ["solana-pay-core/otel"]
 axum = ["server", "dep:axum"]
 gcp_kms = ["solana-keychain/gcp_kms"]
+# Ledger hardware-wallet signing (USB-HID). Passes through to the keychain
+# `ledger` backend, which requires sdk-v3 (already used here).
+ledger = ["solana-keychain/ledger"]
 # Token-2022 confidential transfers: pulls in ZK proof generation
 # (solana-zk-sdk) and the Token-2022 confidential-transfer instruction
 # builders. Opt-in so non-confidential consumers (mobile/wasm/FFI) stay lean.
@@ -46,7 +49,12 @@ worker = ["confidential", "server", "dep:solana-rpc-client-api"]
 # Signing — solana-keychain with sdk-v3. Rev d788028 widens the solana-signature
 # bound to <3.5, letting signature resolve to 3.3.x — the version the solana 4.0
 # client line (`~3.3.0`) and litesvm 0.13 require.
-solana-keychain = { git = "https://github.com/solana-foundation/solana-keychain", rev = "d788028edbe02a94ef5eee7585d0230ad771296e", default-features = false, features = ["memory", "sdk-v3"] }
+#
+# DEV WIRING: pointed at the ledgicr fork's `ledger-signing` branch so the
+# `ledger` passthrough feature resolves. Before upstreaming PR2, restore the
+# solana-foundation git source and bump `rev` to PR1's merge commit (the
+# `ledger` feature must exist at that rev).
+solana-keychain = { git = "https://github.com/ledgicr/solana-keychain", branch = "ledger-signing", default-features = false, features = ["memory", "sdk-v3"] }
 
 # Solana — atomic crates only. Low-level interface crates stay on flexible 3.x
 # ranges so they unify with litesvm 0.13's pins (message 3.1.0, instruction
