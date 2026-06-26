@@ -28,8 +28,11 @@ otel = [
 ]
 
 [dependencies]
-# Signing — solana-keychain with sdk-v3 (matches mpp/x402 pins)
-solana-keychain = { git = "https://github.com/solana-foundation/solana-keychain", rev = "d788028edbe02a94ef5eee7585d0230ad771296e", default-features = false, features = ["memory", "sdk-v3"] }
+# Signing — solana-keychain with sdk-v3 (matches mpp/x402 pins).
+# DEV WIRING: all pay-kit crates must point at the SAME keychain source or the
+# `SolanaSigner` trait diverges across the graph. Restore the solana-foundation
+# source + merge-commit rev (uniformly) before upstreaming.
+solana-keychain = { git = "https://github.com/ledgicr/solana-keychain", branch = "ledger-signing", default-features = false, features = ["memory", "sdk-v3"] }
 
 # Force five8_core's `std` feature ON: it gates `impl Error for DecodeError`,
 # which solana-keypair/solana-signature rely on. Without it, building this crate
