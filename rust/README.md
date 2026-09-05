@@ -300,6 +300,13 @@ passthrough and nothing else.
 solana-pay-kit = { version = "0.6", features = ["ledger"] }
 ```
 
+**Not enabled yet.** The `ledger` feature is commented out in this crate's
+manifest until `solana-foundation/solana-keychain` publishes a release carrying
+its own `ledger` feature. Cargo validates that a referenced dependency feature
+exists at resolve time, whether or not anyone enables it, so an uncommented line
+would fail the default build for every consumer. Both edits that ship it are
+marked `TODO(ledger)` in `crates/kit/Cargo.toml`.
+
 ```rust
 use solana_pay_kit::solana_keychain::{LedgerConfig, LedgerSigner};
 use std::sync::Arc;
@@ -347,10 +354,10 @@ any aggregate feature — it must never arrive because someone enabled `axum`.
 
 ```toml
 # Gate routes with the unified dual-protocol axum gate (this guide):
-solana-pay-kit = { version = "0.1", features = ["axum"] }
+solana-pay-kit = { version = "0.6", features = ["axum"] }
 
 # Single protocol:
-solana-pay-kit = { version = "0.1", default-features = false, features = ["mpp"] }
+solana-pay-kit = { version = "0.6", default-features = false, features = ["mpp"] }
 ```
 
 Feature flags:
