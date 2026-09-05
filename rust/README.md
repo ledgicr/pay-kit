@@ -289,6 +289,58 @@ Set `fee_payer_signer` on `PayKitConfig` to sponsor the network fee — one key
 drives MPP fee-sponsored mode and supplies x402's fee-payer address. The
 `gcp_kms` feature wires the GCP KMS backend.
 
+### Ledger hardware wallet
+
+The `ledger` feature makes `solana_keychain::LedgerSigner` constructible. There
+is no pay-kit code behind it: the builders already take
+`&dyn TransactionSigner`, which a Ledger signer implements, so it is a feature
+passthrough and nothing else.
+
+```toml
+solana-pay-kit = { version = "0.6", features = ["ledger"] }
+```
+
+```rust
+use solana_pay_kit::solana_keychain::{LedgerConfig, LedgerSigner};
+use std::sync::Arc;
+
+// Blocks on device I/O, so keep it off the async runtime.
+let ledger = tokio::task::spawn_blocking(|| {
+    LedgerSigner::connect_with(LedgerConfig {
+        // Server-side: never launch an app on the device unprompted, and do not
+        // hold a worker for two minutes waiting on a human.
+        auto_open_app: false,
+        signing_timeout: std::time::Duration::from_secs(60),
+        ..LedgerConfig::default()
+    })
+})
+.await??;
+
+let config = PayKitConfig {
+    fee_payer_signer: Some(Arc::new(ledger)),
+    ..Default::default()
+};
+```
+
+Three things to know before putting one behind a server.
+
+**It is not a drop-in for a software key.** Every signature needs a physical
+button press, one process serializes to one on-device confirmation at a time,
+and a second signing request while the device is mid-prompt fails fast rather
+than queueing. That suits a treasury or a demo, not a request path.
+
+**`sign_message` does not sign your bytes.** A Ledger cannot raw-sign arbitrary
+data; the payload is wrapped in the Solana app's off-chain-message envelope and
+the device signs the envelope. Anything verifying a `sign_message` result must
+rebuild the same envelope. This is why pay-kit's message-only signer slots stay
+`SolanaSigner` while transaction slots are `TransactionSigner`: the two are not
+interchangeable on hardware even though they are on `MemorySigner`.
+
+**Building it needs system packages**, because `hidapi` compiles a native
+library: `libudev-dev` and `pkg-config` on Debian/Ubuntu, `systemd-devel` and
+`pkgconf-pkg-config` on Fedora, nothing on macOS. That is why `ledger` is not in
+any aggregate feature — it must never arrive because someone enabled `axum`.
+
 ---
 
 ## Install

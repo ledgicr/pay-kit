@@ -24,6 +24,29 @@ client = ["dep:reqwest"]
 # plus the server side.
 axum = ["mpp", "x402", "server", "dep:axum"]
 gcp_kms = ["solana-keychain/gcp_kms"]
+# Ledger hardware-wallet signing over USB-HID. A pure feature passthrough: there
+# is no code here. The MPP and x402 builders already take
+# `&dyn TransactionSigner`, which `solana_keychain::LedgerSigner` implements, so
+# enabling this just makes that signer constructible.
+#
+# Deliberately outside every aggregate feature, including `default` and the
+# protocol features. It pulls `hidapi`, which builds a native HID library and
+# needs system packages (see the note in the dependency section), so it must
+# never arrive because someone turned on `axum` or `confidential`.
+#
+# COMMENTED OUT ON PURPOSE, and this is the whole reason this branch is not open
+# as a PR yet. Cargo validates that a referenced dependency feature *exists* at
+# resolve time, whether or not it is enabled, so an uncommented line here fails
+# the DEFAULT build for every consumer with:
+#
+#   package `solana-pay-kit` depends on `solana-keychain` with feature `ledger`
+#   but `solana-keychain` does not have that feature
+#
+# The published 2.0.0-beta.1 predates the feature. So shipping this is exactly
+# two edits, both marked TODO(ledger): uncomment the line below, and bump the
+# keychain version in the dependency section. Nothing else.
+# TODO(ledger): uncomment once a keychain release carries the `ledger` feature.
+# ledger = ["solana-keychain/ledger"]
 # Durable server-side session state. Opt-in so clients and local-only servers
 # do not pull a Redis runtime into their dependency graph.
 redis-store = ["dep:redis"]
@@ -73,7 +96,25 @@ otel = [
 # Signing — solana-keychain 2.x with sdk-v3. 2.0 split transaction signing out
 # of `SolanaSigner` into the `TransactionSigner` capability trait and moved it to
 # `VersionedTransaction`; see core::signing for how the kit adapts.
+#
+# TODO(ledger): bump to the first published keychain release carrying the
+# `ledger` feature, once solana-foundation/solana-keychain#301 ships. Until then
+# `--features ledger` will not resolve, because 2.0.0-beta.1 predates the
+# feature. This is left as a version pin rather than a git dependency on purpose:
+# `cargo publish` rejects a git dep, and a mutable branch on a fork is not
+# something a payments SDK should carry even temporarily. So this branch is
+# openly not mergeable yet, and the single-line bump below is the whole of what
+# it is waiting on.
 solana-keychain = { version = "2.0.0-beta.1", default-features = false, features = ["memory", "sdk-v3"] }
+#
+# `--features ledger` additionally needs a C toolchain and the system HID
+# headers, because `hidapi` compiles a native library:
+#   Debian/Ubuntu:  sudo apt-get install -y libudev-dev pkg-config
+#   Fedora:         sudo dnf install -y systemd-devel pkgconf-pkg-config
+#   macOS:          nothing; IOKit ships with the SDK
+# CI that builds this feature must install those first. Everything else in this
+# manifest builds with no system dependencies, which is why this is called out
+# here rather than assumed.
 
 # Force five8_core's `std` feature ON: gates `impl Error for DecodeError`,
 # which solana-keypair/solana-signature rely on.
