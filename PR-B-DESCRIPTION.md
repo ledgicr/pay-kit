@@ -1,6 +1,7 @@
 # PR B: Ledger passthrough — DRAFT, NOT OPENABLE YET
 
-**Status: gated. Do not open this as a pull request yet.**
+**Status: gated on the keychain release carrying the `ledger` feature. Do not
+open this as a pull request yet.**
 
 This branch cannot be a PR until `solana-foundation/solana-keychain#301` ships a
 release carrying the `ledger` feature. Everything else is done and this file is
