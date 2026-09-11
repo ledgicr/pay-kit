@@ -97,7 +97,7 @@ impl Default for CancelSubscriptionInstructionData {
 ///   0. `[signer]` subscriber
 ///   1. `[]` plan_pda
 ///   2. `[writable]` subscription_pda
-///   3. `[optional]` event_authority (default to `3Hnj4BYoDgtpBuqXfiy7Y8cNa3jXaNd4oqgSXBzkMcH7`)
+///   3. `[]` event_authority
 ///   4. `[optional]` self_program (default to `De1egAFMkMWZSN5rYXRj9CAdheBamobVNubTsi9avR44`)
 #[derive(Clone, Debug, Default)]
 pub struct CancelSubscriptionBuilder {
@@ -131,7 +131,6 @@ impl CancelSubscriptionBuilder {
         self.subscription_pda = Some(subscription_pda);
         self
     }
-    /// `[optional account, default to '3Hnj4BYoDgtpBuqXfiy7Y8cNa3jXaNd4oqgSXBzkMcH7']`
     /// The event authority PDA
     #[inline(always)]
     pub fn event_authority(&mut self, event_authority: solana_address::Address) -> &mut Self {
@@ -166,9 +165,7 @@ impl CancelSubscriptionBuilder {
             subscriber: self.subscriber.expect("subscriber is not set"),
             plan_pda: self.plan_pda.expect("plan_pda is not set"),
             subscription_pda: self.subscription_pda.expect("subscription_pda is not set"),
-            event_authority: self.event_authority.unwrap_or(solana_address::address!(
-                "3Hnj4BYoDgtpBuqXfiy7Y8cNa3jXaNd4oqgSXBzkMcH7"
-            )),
+            event_authority: self.event_authority.expect("event_authority is not set"),
             self_program: self.self_program.unwrap_or(solana_address::address!(
                 "De1egAFMkMWZSN5rYXRj9CAdheBamobVNubTsi9avR44"
             )),
@@ -269,8 +266,8 @@ impl<'a, 'b> CancelSubscriptionCpi<'a, 'b> {
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
-                is_signer: remaining_account.1,
-                is_writable: remaining_account.2,
+                is_writable: remaining_account.1,
+                is_signer: remaining_account.2,
             })
         });
         let data = CancelSubscriptionInstructionData::new()

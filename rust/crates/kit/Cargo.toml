@@ -1,6 +1,6 @@
 [package]
 name = "solana-pay-kit"
-version = "0.6.0"
+version = "0.8.0"
 edition = "2021"
 description = "Building blocks for Agentic payments (x402, MPP, AP2)"
 license = "MIT"
@@ -143,6 +143,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_json_canonicalizer = "0.3"
 bs58 = "0.5"
+five8 = "1.0"
 base64 = "0.22"
 bincode = "1"
 borsh = { version = "1.0", features = ["derive"] }

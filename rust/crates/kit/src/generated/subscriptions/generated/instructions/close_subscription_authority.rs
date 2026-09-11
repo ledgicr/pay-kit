@@ -17,6 +17,8 @@ pub struct CloseSubscriptionAuthority {
     pub user: solana_address::Address,
     /// The SubscriptionAuthority PDA to close
     pub subscription_authority: solana_address::Address,
+    /// Optional rent recipient, required when the recorded payer differs from the user. Must match the stored payer.
+    pub receiver: Option<solana_address::Address>,
 }
 
 impl CloseSubscriptionAuthority {
@@ -29,12 +31,15 @@ impl CloseSubscriptionAuthority {
         &self,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new(self.user, true));
         accounts.push(solana_instruction::AccountMeta::new(
             self.subscription_authority,
             false,
         ));
+        if let Some(receiver) = self.receiver {
+            accounts.push(solana_instruction::AccountMeta::new(receiver, false));
+        }
         accounts.extend_from_slice(remaining_accounts);
         let data = CloseSubscriptionAuthorityInstructionData::new()
             .try_to_vec()
@@ -75,10 +80,12 @@ impl Default for CloseSubscriptionAuthorityInstructionData {
 ///
 ///   0. `[writable, signer]` user
 ///   1. `[writable]` subscription_authority
+///   2. `[writable, optional]` receiver
 #[derive(Clone, Debug, Default)]
 pub struct CloseSubscriptionAuthorityBuilder {
     user: Option<solana_address::Address>,
     subscription_authority: Option<solana_address::Address>,
+    receiver: Option<solana_address::Address>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
@@ -99,6 +106,13 @@ impl CloseSubscriptionAuthorityBuilder {
         subscription_authority: solana_address::Address,
     ) -> &mut Self {
         self.subscription_authority = Some(subscription_authority);
+        self
+    }
+    /// `[optional account]`
+    /// Optional rent recipient, required when the recorded payer differs from the user. Must match the stored payer.
+    #[inline(always)]
+    pub fn receiver(&mut self, receiver: Option<solana_address::Address>) -> &mut Self {
+        self.receiver = receiver;
         self
     }
     /// Add an additional account to the instruction.
@@ -123,6 +137,7 @@ impl CloseSubscriptionAuthorityBuilder {
             subscription_authority: self
                 .subscription_authority
                 .expect("subscription_authority is not set"),
+            receiver: self.receiver,
         };
 
         accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
@@ -135,6 +150,8 @@ pub struct CloseSubscriptionAuthorityCpiAccounts<'a, 'b> {
     pub user: &'b solana_account_info::AccountInfo<'a>,
     /// The SubscriptionAuthority PDA to close
     pub subscription_authority: &'b solana_account_info::AccountInfo<'a>,
+    /// Optional rent recipient, required when the recorded payer differs from the user. Must match the stored payer.
+    pub receiver: Option<&'b solana_account_info::AccountInfo<'a>>,
 }
 
 /// `close_subscription_authority` CPI instruction.
@@ -145,6 +162,8 @@ pub struct CloseSubscriptionAuthorityCpi<'a, 'b> {
     pub user: &'b solana_account_info::AccountInfo<'a>,
     /// The SubscriptionAuthority PDA to close
     pub subscription_authority: &'b solana_account_info::AccountInfo<'a>,
+    /// Optional rent recipient, required when the recorded payer differs from the user. Must match the stored payer.
+    pub receiver: Option<&'b solana_account_info::AccountInfo<'a>>,
 }
 
 impl<'a, 'b> CloseSubscriptionAuthorityCpi<'a, 'b> {
@@ -156,6 +175,7 @@ impl<'a, 'b> CloseSubscriptionAuthorityCpi<'a, 'b> {
             __program: program,
             user: accounts.user,
             subscription_authority: accounts.subscription_authority,
+            receiver: accounts.receiver,
         }
     }
     #[inline(always)]
@@ -181,17 +201,20 @@ impl<'a, 'b> CloseSubscriptionAuthorityCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new(*self.user.key, true));
         accounts.push(solana_instruction::AccountMeta::new(
             *self.subscription_authority.key,
             false,
         ));
+        if let Some(receiver) = self.receiver {
+            accounts.push(solana_instruction::AccountMeta::new(*receiver.key, false));
+        }
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
-                is_signer: remaining_account.1,
-                is_writable: remaining_account.2,
+                is_writable: remaining_account.1,
+                is_signer: remaining_account.2,
             })
         });
         let data = CloseSubscriptionAuthorityInstructionData::new()
@@ -203,10 +226,13 @@ impl<'a, 'b> CloseSubscriptionAuthorityCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.user.clone());
         account_infos.push(self.subscription_authority.clone());
+        if let Some(receiver) = self.receiver {
+            account_infos.push(receiver.clone());
+        }
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -225,6 +251,7 @@ impl<'a, 'b> CloseSubscriptionAuthorityCpi<'a, 'b> {
 ///
 ///   0. `[writable, signer]` user
 ///   1. `[writable]` subscription_authority
+///   2. `[writable, optional]` receiver
 #[derive(Clone, Debug)]
 pub struct CloseSubscriptionAuthorityCpiBuilder<'a, 'b> {
     instruction: Box<CloseSubscriptionAuthorityCpiBuilderInstruction<'a, 'b>>,
@@ -236,6 +263,7 @@ impl<'a, 'b> CloseSubscriptionAuthorityCpiBuilder<'a, 'b> {
             __program: program,
             user: None,
             subscription_authority: None,
+            receiver: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -253,6 +281,16 @@ impl<'a, 'b> CloseSubscriptionAuthorityCpiBuilder<'a, 'b> {
         subscription_authority: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.subscription_authority = Some(subscription_authority);
+        self
+    }
+    /// `[optional account]`
+    /// Optional rent recipient, required when the recorded payer differs from the user. Must match the stored payer.
+    #[inline(always)]
+    pub fn receiver(
+        &mut self,
+        receiver: Option<&'b solana_account_info::AccountInfo<'a>>,
+    ) -> &mut Self {
+        self.instruction.receiver = receiver;
         self
     }
     /// Add an additional account to the instruction.
@@ -298,6 +336,8 @@ impl<'a, 'b> CloseSubscriptionAuthorityCpiBuilder<'a, 'b> {
                 .instruction
                 .subscription_authority
                 .expect("subscription_authority is not set"),
+
+            receiver: self.instruction.receiver,
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -311,6 +351,7 @@ struct CloseSubscriptionAuthorityCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_account_info::AccountInfo<'a>,
     user: Option<&'b solana_account_info::AccountInfo<'a>>,
     subscription_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    receiver: Option<&'b solana_account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

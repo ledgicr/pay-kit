@@ -15,4 +15,8 @@ pub struct UpdatePlanData {
     pub end_ts: i64,
     pub pullers: [Address; 4],
     pub metadata_uri: [u8; 128],
+    pub expected_created_at: i64,
+    pub expected_end_ts: i64,
+    pub expected_pullers: [Address; 4],
+    pub expected_metadata_uri: [u8; 128],
 }

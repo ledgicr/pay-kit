@@ -18,6 +18,10 @@ pub struct UpdatePlan {
     pub owner: solana_address::Address,
     /// The plan PDA being updated
     pub plan_pda: solana_address::Address,
+    /// The event authority PDA
+    pub event_authority: solana_address::Address,
+    /// This program (for self-CPI)
+    pub self_program: solana_address::Address,
 }
 
 impl UpdatePlan {
@@ -31,11 +35,19 @@ impl UpdatePlan {
         args: UpdatePlanInstructionArgs,
         remaining_accounts: &[solana_instruction::AccountMeta],
     ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.owner, true,
         ));
         accounts.push(solana_instruction::AccountMeta::new(self.plan_pda, false));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.event_authority,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.self_program,
+            false,
+        ));
         accounts.extend_from_slice(remaining_accounts);
         let mut data = UpdatePlanInstructionData::new().try_to_vec().unwrap();
         let mut args = args.try_to_vec().unwrap();
@@ -87,10 +99,14 @@ impl UpdatePlanInstructionArgs {
 ///
 ///   0. `[signer]` owner
 ///   1. `[writable]` plan_pda
+///   2. `[]` event_authority
+///   3. `[optional]` self_program (default to `De1egAFMkMWZSN5rYXRj9CAdheBamobVNubTsi9avR44`)
 #[derive(Clone, Debug, Default)]
 pub struct UpdatePlanBuilder {
     owner: Option<solana_address::Address>,
     plan_pda: Option<solana_address::Address>,
+    event_authority: Option<solana_address::Address>,
+    self_program: Option<solana_address::Address>,
     update_plan_data: Option<UpdatePlanData>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -109,6 +125,19 @@ impl UpdatePlanBuilder {
     #[inline(always)]
     pub fn plan_pda(&mut self, plan_pda: solana_address::Address) -> &mut Self {
         self.plan_pda = Some(plan_pda);
+        self
+    }
+    /// The event authority PDA
+    #[inline(always)]
+    pub fn event_authority(&mut self, event_authority: solana_address::Address) -> &mut Self {
+        self.event_authority = Some(event_authority);
+        self
+    }
+    /// `[optional account, default to 'De1egAFMkMWZSN5rYXRj9CAdheBamobVNubTsi9avR44']`
+    /// This program (for self-CPI)
+    #[inline(always)]
+    pub fn self_program(&mut self, self_program: solana_address::Address) -> &mut Self {
+        self.self_program = Some(self_program);
         self
     }
     #[inline(always)]
@@ -136,6 +165,10 @@ impl UpdatePlanBuilder {
         let accounts = UpdatePlan {
             owner: self.owner.expect("owner is not set"),
             plan_pda: self.plan_pda.expect("plan_pda is not set"),
+            event_authority: self.event_authority.expect("event_authority is not set"),
+            self_program: self.self_program.unwrap_or(solana_address::address!(
+                "De1egAFMkMWZSN5rYXRj9CAdheBamobVNubTsi9avR44"
+            )),
         };
         let args = UpdatePlanInstructionArgs {
             update_plan_data: self
@@ -154,6 +187,10 @@ pub struct UpdatePlanCpiAccounts<'a, 'b> {
     pub owner: &'b solana_account_info::AccountInfo<'a>,
     /// The plan PDA being updated
     pub plan_pda: &'b solana_account_info::AccountInfo<'a>,
+    /// The event authority PDA
+    pub event_authority: &'b solana_account_info::AccountInfo<'a>,
+    /// This program (for self-CPI)
+    pub self_program: &'b solana_account_info::AccountInfo<'a>,
 }
 
 /// `update_plan` CPI instruction.
@@ -164,6 +201,10 @@ pub struct UpdatePlanCpi<'a, 'b> {
     pub owner: &'b solana_account_info::AccountInfo<'a>,
     /// The plan PDA being updated
     pub plan_pda: &'b solana_account_info::AccountInfo<'a>,
+    /// The event authority PDA
+    pub event_authority: &'b solana_account_info::AccountInfo<'a>,
+    /// This program (for self-CPI)
+    pub self_program: &'b solana_account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
     pub __args: UpdatePlanInstructionArgs,
 }
@@ -178,6 +219,8 @@ impl<'a, 'b> UpdatePlanCpi<'a, 'b> {
             __program: program,
             owner: accounts.owner,
             plan_pda: accounts.plan_pda,
+            event_authority: accounts.event_authority,
+            self_program: accounts.self_program,
             __args: args,
         }
     }
@@ -204,7 +247,7 @@ impl<'a, 'b> UpdatePlanCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.owner.key,
             true,
@@ -213,11 +256,19 @@ impl<'a, 'b> UpdatePlanCpi<'a, 'b> {
             *self.plan_pda.key,
             false,
         ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.event_authority.key,
+            false,
+        ));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            *self.self_program.key,
+            false,
+        ));
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
-                is_signer: remaining_account.1,
-                is_writable: remaining_account.2,
+                is_writable: remaining_account.1,
+                is_signer: remaining_account.2,
             })
         });
         let mut data = UpdatePlanInstructionData::new().try_to_vec().unwrap();
@@ -229,10 +280,12 @@ impl<'a, 'b> UpdatePlanCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.owner.clone());
         account_infos.push(self.plan_pda.clone());
+        account_infos.push(self.event_authority.clone());
+        account_infos.push(self.self_program.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -251,6 +304,8 @@ impl<'a, 'b> UpdatePlanCpi<'a, 'b> {
 ///
 ///   0. `[signer]` owner
 ///   1. `[writable]` plan_pda
+///   2. `[]` event_authority
+///   3. `[]` self_program
 #[derive(Clone, Debug)]
 pub struct UpdatePlanCpiBuilder<'a, 'b> {
     instruction: Box<UpdatePlanCpiBuilderInstruction<'a, 'b>>,
@@ -262,6 +317,8 @@ impl<'a, 'b> UpdatePlanCpiBuilder<'a, 'b> {
             __program: program,
             owner: None,
             plan_pda: None,
+            event_authority: None,
+            self_program: None,
             update_plan_data: None,
             __remaining_accounts: Vec::new(),
         });
@@ -277,6 +334,24 @@ impl<'a, 'b> UpdatePlanCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn plan_pda(&mut self, plan_pda: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.plan_pda = Some(plan_pda);
+        self
+    }
+    /// The event authority PDA
+    #[inline(always)]
+    pub fn event_authority(
+        &mut self,
+        event_authority: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.event_authority = Some(event_authority);
+        self
+    }
+    /// This program (for self-CPI)
+    #[inline(always)]
+    pub fn self_program(
+        &mut self,
+        self_program: &'b solana_account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.self_program = Some(self_program);
         self
     }
     #[inline(always)]
@@ -331,6 +406,16 @@ impl<'a, 'b> UpdatePlanCpiBuilder<'a, 'b> {
             owner: self.instruction.owner.expect("owner is not set"),
 
             plan_pda: self.instruction.plan_pda.expect("plan_pda is not set"),
+
+            event_authority: self
+                .instruction
+                .event_authority
+                .expect("event_authority is not set"),
+
+            self_program: self
+                .instruction
+                .self_program
+                .expect("self_program is not set"),
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -345,6 +430,8 @@ struct UpdatePlanCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_account_info::AccountInfo<'a>,
     owner: Option<&'b solana_account_info::AccountInfo<'a>>,
     plan_pda: Option<&'b solana_account_info::AccountInfo<'a>>,
+    event_authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    self_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     update_plan_data: Option<UpdatePlanData>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
